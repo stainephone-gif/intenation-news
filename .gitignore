@@ -32,3 +32,18 @@ google-services.json
 
 # Android Profiling
 *.hprof
+
+# Node.js
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# React build
+moscow-settlement-game/build/
+moscow-settlement-android/www/
+moscow-settlement-android/platforms/
+moscow-settlement-android/plugins/
+
+# Package locks (keep package.json but ignore locks for cleaner commits)
+package-lock.json

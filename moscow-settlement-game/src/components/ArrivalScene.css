@@ -1,0 +1,153 @@
+.arrival-scene {
+  background-color: white;
+  border-radius: 12px;
+  padding: 2rem;
+  max-width: 800px;
+  width: 100%;
+  box-shadow: 0 10px 40px rgba(0, 0, 0, 0.2);
+}
+
+.scene-header {
+  margin-bottom: 2rem;
+  text-align: center;
+  border-bottom: 2px solid #f0f0f0;
+  padding-bottom: 1.5rem;
+}
+
+.scene-header h2 {
+  color: #333;
+  font-size: 2rem;
+  margin-bottom: 0.5rem;
+}
+
+.scene-description {
+  color: #666;
+  line-height: 1.6;
+  font-size: 1rem;
+}
+
+.scene-content {
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+}
+
+.message-log {
+  min-height: 200px;
+  max-height: 400px;
+  overflow-y: auto;
+  background-color: #f8f9fa;
+  border-radius: 8px;
+  padding: 1.5rem;
+}
+
+.message {
+  background-color: white;
+  padding: 1rem;
+  margin-bottom: 0.75rem;
+  border-radius: 8px;
+  border-left: 4px solid #667eea;
+  box-shadow: 0 2px 5px rgba(0, 0, 0, 0.05);
+  animation: fadeIn 0.5s ease;
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(-10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.waiting-indicator {
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  color: white;
+  padding: 1.5rem;
+  border-radius: 8px;
+  margin-bottom: 1rem;
+}
+
+.waiting-indicator p {
+  margin-bottom: 0.5rem;
+  font-weight: 600;
+}
+
+.progress-bar {
+  width: 100%;
+  height: 20px;
+  background-color: rgba(255, 255, 255, 0.3);
+  border-radius: 10px;
+  overflow: hidden;
+  margin: 1rem 0;
+}
+
+.progress-fill {
+  height: 100%;
+  background-color: #4CAF50;
+  transition: width 0.1s linear;
+}
+
+.flavor-text {
+  font-style: italic;
+  opacity: 0.9;
+  margin-top: 1rem;
+}
+
+.choices {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 1rem;
+}
+
+.choices h3 {
+  color: #333;
+  margin-bottom: 0.5rem;
+  text-align: center;
+}
+
+.document-check-scene {
+  text-align: center;
+  padding: 2rem;
+}
+
+.checking-animation {
+  margin-bottom: 2rem;
+}
+
+.checking-animation p {
+  font-size: 1.5rem;
+  color: #667eea;
+  animation: pulse 1.5s infinite;
+}
+
+@keyframes pulse {
+  0%, 100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.5;
+  }
+}
+
+.completion-section {
+  text-align: center;
+  padding: 2rem;
+}
+
+@media (max-width: 768px) {
+  .arrival-scene {
+    padding: 1.5rem;
+  }
+
+  .scene-header h2 {
+    font-size: 1.5rem;
+  }
+
+  .message-log {
+    max-height: 300px;
+  }
+}
