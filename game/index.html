@@ -1,0 +1,163 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>How a Foreigner Settles Down in Moscow</title>
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+    <div class="app">
+        <header class="app-header">
+            <h1>🏛️ How a Foreigner Settles Down in Moscow</h1>
+            <div id="resourceBar" class="resource-bar" style="display: none;">
+                <div class="resource">💰 <span id="money">0</span>₽</div>
+                <div class="resource">⏱️ Time: <span id="time">0</span></div>
+                <div class="resource">😰 Stress: <span id="stress">0</span>%</div>
+                <div class="resource">🗣️ Russian: <span id="language">0</span>%</div>
+            </div>
+        </header>
+
+        <main class="game-container">
+            <!-- Character Creation Screen -->
+            <div id="characterCreation" class="screen">
+                <div class="character-creation">
+                    <div class="intro-text">
+                        <h2>Create Your Character</h2>
+                        <p>Welcome to Moscow! Your choices here will determine your journey. Different nationalities, ages, and purposes will create unique challenges.</p>
+                    </div>
+
+                    <form id="characterForm" class="character-form">
+                        <div class="form-group">
+                            <label for="age">Age: <span id="ageDisplay" class="value-display">25</span></label>
+                            <input type="range" id="age" min="18" max="99" value="25" class="slider">
+                            <span class="error" id="ageError"></span>
+                        </div>
+
+                        <div class="form-group">
+                            <label for="nationality">Nationality:</label>
+                            <select id="nationality">
+                                <option value="">Select your country...</option>
+                                <option value="USA">USA</option>
+                                <option value="China">China</option>
+                                <option value="India">India</option>
+                                <option value="Germany">Germany</option>
+                                <option value="France">France</option>
+                                <option value="UK">UK</option>
+                                <option value="Japan">Japan</option>
+                                <option value="South Korea">South Korea</option>
+                                <option value="Brazil">Brazil</option>
+                                <option value="Mexico">Mexico</option>
+                                <option value="Turkey">Turkey</option>
+                                <option value="Egypt">Egypt</option>
+                                <option value="South Africa">South Africa</option>
+                                <option value="Kazakhstan">Kazakhstan</option>
+                                <option value="Uzbekistan">Uzbekistan</option>
+                                <option value="Belarus">Belarus</option>
+                                <option value="Ukraine">Ukraine</option>
+                                <option value="Georgia">Georgia</option>
+                                <option value="Armenia">Armenia</option>
+                                <option value="Azerbaijan">Azerbaijan</option>
+                                <option value="Vietnam">Vietnam</option>
+                                <option value="Thailand">Thailand</option>
+                                <option value="Indonesia">Indonesia</option>
+                                <option value="Philippines">Philippines</option>
+                                <option value="Other">Other</option>
+                            </select>
+                            <span class="error" id="nationalityError"></span>
+                        </div>
+
+                        <div class="form-group">
+                            <label>Purpose of Visit:</label>
+                            <div class="radio-group">
+                                <div class="radio-option">
+                                    <label class="radio-label">
+                                        <input type="radio" name="purpose" value="study">
+                                        <div class="radio-content">
+                                            <strong>Study (Student Visa)</strong>
+                                            <p>You are here to study at a Russian university</p>
+                                        </div>
+                                    </label>
+                                </div>
+                                <div class="radio-option">
+                                    <label class="radio-label">
+                                        <input type="radio" name="purpose" value="business">
+                                        <div class="radio-content">
+                                            <strong>Business (Work Visa)</strong>
+                                            <p>You are here for work or business opportunities</p>
+                                        </div>
+                                    </label>
+                                </div>
+                                <div class="radio-option">
+                                    <label class="radio-label">
+                                        <input type="radio" name="purpose" value="tourism">
+                                        <div class="radio-content">
+                                            <strong>Tourism (Tourist Visa)</strong>
+                                            <p>You are visiting Moscow as a tourist</p>
+                                        </div>
+                                    </label>
+                                </div>
+                            </div>
+                            <span class="error" id="purposeError"></span>
+                        </div>
+
+                        <div id="difficultyPreview" class="difficulty-preview" style="display: none;">
+                            <h3>📊 Character Preview</h3>
+                            <p><strong>Difficulty:</strong> <span id="difficultyLevel">Medium</span></p>
+                            <ul class="tips-list" id="tipsList"></ul>
+                        </div>
+
+                        <button type="submit" class="btn-primary">Begin Your Journey →</button>
+                    </form>
+                </div>
+            </div>
+
+            <!-- Arrival Scene -->
+            <div id="arrivalScene" class="screen" style="display: none;">
+                <div class="scene">
+                    <div class="scene-header">
+                        <h2>🛂 Scene 1: Arrival & Immigration</h2>
+                        <p class="scene-description">
+                            You've just landed at Sheremetyevo International Airport in Moscow.
+                            The airport is busy, signs are in Russian and English, and you see a long line at passport control.
+                        </p>
+                    </div>
+                    <div class="scene-content">
+                        <div id="arrivalMessages" class="message-log"></div>
+                        <div id="arrivalChoices" class="choices"></div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Transport Scene -->
+            <div id="transportScene" class="screen" style="display: none;">
+                <div class="scene">
+                    <div class="scene-header">
+                        <h2>🚖 Transport Selection</h2>
+                        <p class="scene-description">
+                            You've cleared customs and have your luggage. Now you need to get to your accommodation in the city. How will you travel?
+                        </p>
+                    </div>
+                    <div class="scene-content">
+                        <div id="transportMessages" class="message-log"></div>
+                        <div id="transportChoices" class="choices"></div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Results Screen -->
+            <div id="resultsScene" class="screen" style="display: none;">
+                <div class="game-complete">
+                    <div class="complete-header">
+                        <h1>🎉 Day 1 Complete!</h1>
+                        <p>You've successfully arrived in Moscow and reached your accommodation.</p>
+                    </div>
+                    <div id="resultsContent" class="results-container"></div>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <script src="game.js"></script>
+</body>
+</html>
