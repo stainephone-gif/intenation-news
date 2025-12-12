@@ -1,0 +1,13 @@
+{
+  "files": {
+    "main.css": "/intenation-news/static/css/main.0804f54e.css",
+    "main.js": "/intenation-news/static/js/main.491a4af9.js",
+    "index.html": "/intenation-news/index.html",
+    "main.0804f54e.css.map": "/intenation-news/static/css/main.0804f54e.css.map",
+    "main.491a4af9.js.map": "/intenation-news/static/js/main.491a4af9.js.map"
+  },
+  "entrypoints": [
+    "static/css/main.0804f54e.css",
+    "static/js/main.491a4af9.js"
+  ]
+}
