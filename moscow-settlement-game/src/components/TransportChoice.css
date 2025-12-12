@@ -1,0 +1,79 @@
+.transport-choice {
+  background-color: white;
+  border-radius: 12px;
+  padding: 2rem;
+  max-width: 800px;
+  width: 100%;
+  box-shadow: 0 10px 40px rgba(0, 0, 0, 0.2);
+}
+
+.transport-options {
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+}
+
+.transport-options h3 {
+  color: #333;
+  text-align: center;
+  margin-bottom: 1rem;
+}
+
+.transport-card {
+  background-color: #f8f9fa;
+  border: 2px solid #ddd;
+  border-radius: 12px;
+  padding: 1.5rem;
+  transition: all 0.3s ease;
+  cursor: pointer;
+}
+
+.transport-card:hover {
+  border-color: #667eea;
+  transform: translateY(-3px);
+  box-shadow: 0 5px 15px rgba(0, 0, 0, 0.1);
+}
+
+.transport-card.easy-mode {
+  background: linear-gradient(135deg, #d4fc79 0%, #96e6a1 100%);
+  border-color: #4CAF50;
+}
+
+.transport-header {
+  font-size: 1.5rem;
+  font-weight: 700;
+  color: #333;
+  margin-bottom: 1rem;
+}
+
+.transport-details {
+  margin-bottom: 1rem;
+}
+
+.transport-details p {
+  margin: 0.5rem 0;
+  color: #555;
+  line-height: 1.4;
+}
+
+.transport-details strong {
+  color: #333;
+}
+
+.transport-card .choice-btn {
+  margin-top: 1rem;
+}
+
+@media (max-width: 768px) {
+  .transport-choice {
+    padding: 1.5rem;
+  }
+
+  .transport-card {
+    padding: 1rem;
+  }
+
+  .transport-header {
+    font-size: 1.2rem;
+  }
+}
