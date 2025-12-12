@@ -2,6 +2,7 @@
   "name": "moscow-settlement-game",
   "version": "0.1.0",
   "private": true,
+  "homepage": "https://stainephone-gif.github.io/intenation-news",
   "dependencies": {
     "react": "^19.2.3",
     "react-dom": "^19.2.3",
