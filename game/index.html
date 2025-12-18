@@ -3,156 +3,288 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>How a Foreigner Settles Down in Moscow</title>
+    <title>How a Foreigner Settles Down - Immigration Simulator</title>
     <link rel="stylesheet" href="styles.css">
 </head>
 <body>
     <div class="app">
         <header class="app-header">
-            <h1>🏛️ How a Foreigner Settles Down in Moscow</h1>
+            <h1>🌍 How a Foreigner Settles Down</h1>
             <div id="resourceBar" class="resource-bar" style="display: none;">
-                <div class="resource">💰 <span id="money">0</span>₽</div>
-                <div class="resource">⏱️ Time: <span id="time">0</span></div>
-                <div class="resource">😰 Stress: <span id="stress">0</span>%</div>
-                <div class="resource">🗣️ Russian: <span id="language">0</span>%</div>
+                <div class="resource resource-time">
+                    <span class="resource-icon">⏰</span>
+                    <span class="resource-label">Days Left:</span>
+                    <span id="daysLeft" class="resource-value">90</span>
+                </div>
+                <div class="resource resource-money">
+                    <span class="resource-icon">💰</span>
+                    <span class="resource-label">Money:</span>
+                    <span id="money" class="resource-value">50,000</span>
+                    <span class="resource-unit">₽</span>
+                </div>
+                <div class="resource resource-docs">
+                    <span class="resource-icon">📄</span>
+                    <span class="resource-label">Documents:</span>
+                    <span id="docsProgress" class="resource-value">0/6</span>
+                </div>
+                <div class="resource resource-language">
+                    <span class="resource-icon">🗣️</span>
+                    <span class="resource-label">Language:</span>
+                    <span id="language" class="resource-value">30</span>
+                    <span class="resource-unit">%</span>
+                </div>
+                <div class="resource resource-stress">
+                    <span class="resource-icon">😰</span>
+                    <span class="resource-label">Stress:</span>
+                    <span id="stress" class="resource-value">10</span>
+                    <span class="resource-unit">%</span>
+                </div>
             </div>
         </header>
 
         <main class="game-container">
             <!-- Character Creation Screen -->
-            <div id="characterCreation" class="screen">
-                <div class="character-creation">
-                    <div class="intro-text">
-                        <h2>Create Your Character</h2>
-                        <p>Welcome to Moscow! Your choices here will determine your journey. Different nationalities, ages, and purposes will create unique challenges.</p>
+            <div id="characterCreation" class="screen active">
+                <div class="content-card">
+                    <div class="intro-section">
+                        <h2>📋 Create Your Character</h2>
+                        <p class="intro-text">
+                            Every foreigner arriving in a new country faces a maze of laws, language, and culture.
+                            This game takes you through the real bureaucratic journey that newcomers experience.
+                        </p>
+                        <p class="intro-text">
+                            Choose who you are, where you're going, and begin your adventure as you step off the plane.
+                        </p>
                     </div>
 
                     <form id="characterForm" class="character-form">
                         <div class="form-group">
-                            <label for="age">Age: <span id="ageDisplay" class="value-display">25</span></label>
-                            <input type="range" id="age" min="18" max="99" value="25" class="slider">
-                            <span class="error" id="ageError"></span>
+                            <label for="age">
+                                Age: <span id="ageDisplay" class="value-display">25</span>
+                            </label>
+                            <input type="range" id="age" min="18" max="70" value="25" class="slider">
                         </div>
 
                         <div class="form-group">
-                            <label for="nationality">Nationality:</label>
-                            <select id="nationality">
+                            <label for="nationality">Nationality / Citizenship:</label>
+                            <select id="nationality" required>
                                 <option value="">Select your country...</option>
-                                <option value="USA">USA</option>
-                                <option value="China">China</option>
-                                <option value="India">India</option>
-                                <option value="Germany">Germany</option>
-                                <option value="France">France</option>
-                                <option value="UK">UK</option>
-                                <option value="Japan">Japan</option>
-                                <option value="South Korea">South Korea</option>
-                                <option value="Brazil">Brazil</option>
-                                <option value="Mexico">Mexico</option>
-                                <option value="Turkey">Turkey</option>
-                                <option value="Egypt">Egypt</option>
-                                <option value="South Africa">South Africa</option>
-                                <option value="Kazakhstan">Kazakhstan</option>
-                                <option value="Uzbekistan">Uzbekistan</option>
-                                <option value="Belarus">Belarus</option>
-                                <option value="Ukraine">Ukraine</option>
-                                <option value="Georgia">Georgia</option>
-                                <option value="Armenia">Armenia</option>
-                                <option value="Azerbaijan">Azerbaijan</option>
-                                <option value="Vietnam">Vietnam</option>
-                                <option value="Thailand">Thailand</option>
-                                <option value="Indonesia">Indonesia</option>
-                                <option value="Philippines">Philippines</option>
-                                <option value="Other">Other</option>
+                                <option value="USA">🇺🇸 USA</option>
+                                <option value="China">🇨🇳 China</option>
+                                <option value="India">🇮🇳 India</option>
+                                <option value="Germany">🇩🇪 Germany</option>
+                                <option value="France">🇫🇷 France</option>
+                                <option value="UK">🇬🇧 United Kingdom</option>
+                                <option value="Japan">🇯🇵 Japan</option>
+                                <option value="South Korea">🇰🇷 South Korea</option>
+                                <option value="Brazil">🇧🇷 Brazil</option>
+                                <option value="Mexico">🇲🇽 Mexico</option>
+                                <option value="Turkey">🇹🇷 Turkey</option>
+                                <option value="Egypt">🇪🇬 Egypt</option>
+                                <option value="Kazakhstan">🇰🇿 Kazakhstan</option>
+                                <option value="Vietnam">🇻🇳 Vietnam</option>
+                                <option value="Other">🌐 Other</option>
                             </select>
-                            <span class="error" id="nationalityError"></span>
+                        </div>
+
+                        <div class="form-group">
+                            <label for="destination">Destination City:</label>
+                            <select id="destination" required>
+                                <option value="">Select destination...</option>
+                                <option value="Moscow">🏛️ Moscow, Russia</option>
+                                <option value="Beijing">🏯 Beijing, China (Coming Soon)</option>
+                                <option value="London">🏰 London, UK (Coming Soon)</option>
+                            </select>
+                            <div id="destinationStats" class="destination-stats" style="display: none;">
+                                <p class="stat-info">Recent visitors from <span id="nationalityName"></span>: <strong id="visitorCount">0</strong></p>
+                            </div>
                         </div>
 
                         <div class="form-group">
                             <label>Purpose of Visit:</label>
                             <div class="radio-group">
-                                <div class="radio-option">
-                                    <label class="radio-label">
-                                        <input type="radio" name="purpose" value="study">
-                                        <div class="radio-content">
-                                            <strong>Study (Student Visa)</strong>
-                                            <p>You are here to study at a Russian university</p>
-                                        </div>
-                                    </label>
-                                </div>
-                                <div class="radio-option">
-                                    <label class="radio-label">
-                                        <input type="radio" name="purpose" value="business">
-                                        <div class="radio-content">
-                                            <strong>Business (Work Visa)</strong>
-                                            <p>You are here for work or business opportunities</p>
-                                        </div>
-                                    </label>
-                                </div>
-                                <div class="radio-option">
-                                    <label class="radio-label">
-                                        <input type="radio" name="purpose" value="tourism">
-                                        <div class="radio-content">
-                                            <strong>Tourism (Tourist Visa)</strong>
-                                            <p>You are visiting Moscow as a tourist</p>
-                                        </div>
-                                    </label>
-                                </div>
+                                <label class="radio-option">
+                                    <input type="radio" name="purpose" value="study" required>
+                                    <div class="radio-content">
+                                        <div class="radio-title">🎓 Study</div>
+                                        <div class="radio-desc">You need to register at university and get documents quickly</div>
+                                    </div>
+                                </label>
+                                <label class="radio-option">
+                                    <input type="radio" name="purpose" value="work">
+                                    <div class="radio-content">
+                                        <div class="radio-title">💼 Work / Business</div>
+                                        <div class="radio-desc">You have more money but complex permit requirements</div>
+                                    </div>
+                                </label>
+                                <label class="radio-option">
+                                    <input type="radio" name="purpose" value="tourism">
+                                    <div class="radio-content">
+                                        <div class="radio-title">🗺️ Tourism</div>
+                                        <div class="radio-desc">Simpler requirements but limited time</div>
+                                    </div>
+                                </label>
                             </div>
-                            <span class="error" id="purposeError"></span>
                         </div>
 
-                        <div id="difficultyPreview" class="difficulty-preview" style="display: none;">
-                            <h3>📊 Character Preview</h3>
-                            <p><strong>Difficulty:</strong> <span id="difficultyLevel">Medium</span></p>
-                            <ul class="tips-list" id="tipsList"></ul>
+                        <div id="characterPreview" class="character-preview" style="display: none;">
+                            <h3>👤 Character Summary</h3>
+                            <div id="previewContent"></div>
                         </div>
 
-                        <button type="submit" class="btn-primary">Begin Your Journey →</button>
+                        <button type="submit" class="btn-primary btn-large">
+                            Begin Journey →
+                        </button>
                     </form>
                 </div>
             </div>
 
-            <!-- Arrival Scene -->
-            <div id="arrivalScene" class="screen" style="display: none;">
-                <div class="scene">
-                    <div class="scene-header">
-                        <h2>🛂 Scene 1: Arrival & Immigration</h2>
-                        <p class="scene-description">
-                            You've just landed at Sheremetyevo International Airport in Moscow.
-                            The airport is busy, signs are in Russian and English, and you see a long line at passport control.
-                        </p>
+            <!-- Game Map Screen -->
+            <div id="gameMap" class="screen">
+                <div class="map-container">
+                    <div class="city-name">
+                        <h2 id="cityName">Moscow</h2>
+                        <p class="city-subtitle">Navigate the city and collect all required documents</p>
                     </div>
-                    <div class="scene-content">
-                        <div id="arrivalMessages" class="message-log"></div>
-                        <div id="arrivalChoices" class="choices"></div>
+
+                    <div class="map-grid">
+                        <div class="location-card" id="loc-airport" data-location="airport">
+                            <div class="location-icon">✈️</div>
+                            <div class="location-name">Airport</div>
+                            <div class="location-status">Required</div>
+                            <div class="document-badge">Migration Card</div>
+                        </div>
+
+                        <div class="location-card locked" id="loc-accommodation" data-location="accommodation">
+                            <div class="location-icon">🏠</div>
+                            <div class="location-name">Accommodation</div>
+                            <div class="location-status">Locked</div>
+                            <div class="document-badge">Registration</div>
+                        </div>
+
+                        <div class="location-card locked" id="loc-university" data-location="university">
+                            <div class="location-icon">🎓</div>
+                            <div class="location-name">University</div>
+                            <div class="location-status">Locked</div>
+                            <div class="document-badge">University Registration</div>
+                        </div>
+
+                        <div class="location-card locked" id="loc-telecom" data-location="telecom">
+                            <div class="location-icon">📱</div>
+                            <div class="location-name">Phone & Bank</div>
+                            <div class="location-status">Locked</div>
+                            <div class="document-badge">SIM + Bank Card</div>
+                        </div>
+
+                        <div class="location-card locked" id="loc-hospital" data-location="hospital">
+                            <div class="location-icon">🏥</div>
+                            <div class="location-name">Hospital</div>
+                            <div class="location-status">Locked</div>
+                            <div class="document-badge">Medical Certificate</div>
+                        </div>
+
+                        <div class="location-card locked" id="loc-migration" data-location="migration">
+                            <div class="location-icon">🏛️</div>
+                            <div class="location-name">Migration Center</div>
+                            <div class="location-status">Locked</div>
+                            <div class="document-badge">Fingerprint Card</div>
+                        </div>
+                    </div>
+
+                    <div class="current-task" id="currentTask">
+                        <h3>📋 Current Task</h3>
+                        <p id="taskDescription">Go to the Airport to get your Migration Card</p>
                     </div>
                 </div>
             </div>
 
-            <!-- Transport Scene -->
-            <div id="transportScene" class="screen" style="display: none;">
-                <div class="scene">
-                    <div class="scene-header">
-                        <h2>🚖 Transport Selection</h2>
-                        <p class="scene-description">
-                            You've cleared customs and have your luggage. Now you need to get to your accommodation in the city. How will you travel?
+            <!-- Location Action Screen -->
+            <div id="locationScreen" class="screen">
+                <div class="content-card">
+                    <div class="location-header">
+                        <button class="btn-back" id="btnBack">← Back to Map</button>
+                        <h2 id="locationTitle">Location</h2>
+                    </div>
+
+                    <div id="locationContent" class="location-content">
+                        <!-- Dynamic content will be inserted here -->
+                    </div>
+                </div>
+            </div>
+
+            <!-- Waiting Screen -->
+            <div id="waitingScreen" class="screen">
+                <div class="content-card waiting-card">
+                    <div class="waiting-animation">
+                        <div class="spinner"></div>
+                        <h2 id="waitingTitle">Processing...</h2>
+                        <p id="waitingDescription">Please wait while your documents are being processed</p>
+                    </div>
+
+                    <div class="waiting-progress">
+                        <div class="progress-bar">
+                            <div class="progress-fill" id="waitingProgress"></div>
+                        </div>
+                        <p class="progress-text">
+                            <span id="waitingDaysLeft">0</span> days remaining
                         </p>
                     </div>
-                    <div class="scene-content">
-                        <div id="transportMessages" class="message-log"></div>
-                        <div id="transportChoices" class="choices"></div>
+
+                    <div class="waiting-tips">
+                        <h3>💡 While waiting, you can:</h3>
+                        <div class="waiting-actions">
+                            <button class="btn-secondary" id="btnStudyLanguage">
+                                📚 Study Russian (+1% per day)
+                            </button>
+                            <button class="btn-secondary" id="btnPartTimeWork">
+                                💵 Part-time work (+500₽ per day)
+                            </button>
+                            <button class="btn-secondary" id="btnRest">
+                                😌 Rest (-5% stress per day)
+                            </button>
+                        </div>
                     </div>
+
+                    <button class="btn-primary" id="btnSkipWait" style="margin-top: 2rem;">
+                        ⏭️ Skip Waiting Period
+                    </button>
                 </div>
             </div>
 
             <!-- Results Screen -->
-            <div id="resultsScene" class="screen" style="display: none;">
-                <div class="game-complete">
-                    <div class="complete-header">
-                        <h1>🎉 Day 1 Complete!</h1>
-                        <p>You've successfully arrived in Moscow and reached your accommodation.</p>
+            <div id="resultsScreen" class="screen">
+                <div class="content-card results-card">
+                    <div class="results-header">
+                        <div class="result-icon" id="resultIcon">🎉</div>
+                        <h1 id="resultTitle">Congratulations!</h1>
+                        <p id="resultSubtitle">You've completed your settlement journey</p>
                     </div>
-                    <div id="resultsContent" class="results-container"></div>
+
+                    <div class="results-content" id="resultsContent">
+                        <!-- Dynamic results will be inserted here -->
+                    </div>
+
+                    <div class="results-actions">
+                        <button class="btn-primary btn-large" onclick="location.reload()">
+                            🔄 Play Again
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Random Event Modal -->
+            <div id="eventModal" class="modal">
+                <div class="modal-content">
+                    <div class="event-header">
+                        <span class="event-icon" id="eventIcon">⚠️</span>
+                        <h3 id="eventTitle">Random Event</h3>
+                    </div>
+                    <div class="event-body">
+                        <p id="eventDescription"></p>
+                    </div>
+                    <div class="event-actions" id="eventActions">
+                        <button class="btn-primary" id="btnEventClose">Continue</button>
+                    </div>
                 </div>
             </div>
         </main>
