@@ -1,688 +1,914 @@
-// Game State
+// ===== GAME STATE =====
 const gameState = {
-    screen: 'character-creation',
     character: null,
     resources: {
-        money: 10000,
-        time: 100,
-        documents: {
-            passport: true,
-            visa: true,
-            migrationCard: false,
-            registration: false
-        },
-        language: 0,
-        stress: 0
+        daysLeft: 90,
+        money: 50000,
+        language: 30,
+        stress: 10,
+        documents: []
     },
-    arrivalStage: 'customs-line',
-    transportStage: 'choice',
-    messages: [],
-    customsOfficerMood: 'neutral'
+    currentDocument: 0,
+    gameStartTime: null,
+    waitingState: null,
+    completedLocations: [],
+    events: []
 };
 
-// Initialize game when DOM is loaded
+// ===== DOCUMENTS DATA =====
+const DOCUMENTS = [
+    {
+        id: 'migration-card',
+        name: 'Migration Card',
+        location: 'airport',
+        icon: '✈️',
+        baseCost: 0,
+        baseTime: 3, // hours (will be converted to days: 3/24)
+        timeRange: [2, 4],
+        waitingDays: 0,
+        languageRequired: 15,
+        description: 'Get your migration card at the airport immigration desk'
+    },
+    {
+        id: 'registration',
+        name: 'Registration',
+        location: 'accommodation',
+        icon: '🏠',
+        baseCost: 500,
+        costOptions: [
+            { name: 'Hotel (Free)', cost: 0, time: 1 },
+            { name: 'Dormitory', cost: 500, time: 1 },
+            { name: 'Apartment', cost: 5000, time: 1 }
+        ],
+        baseTime: 1,
+        waitingDays: 1,
+        languageRequired: 15,
+        description: 'Register your address at your accommodation'
+    },
+    {
+        id: 'university-reg',
+        name: 'University Registration',
+        location: 'university',
+        icon: '🎓',
+        baseCost: 0,
+        baseTime: 3,
+        timeRange: [2, 4],
+        waitingDays: 0,
+        languageRequired: 20,
+        description: 'Complete your registration at the university',
+        requiredPurpose: 'study'
+    },
+    {
+        id: 'sim-bank',
+        name: 'SIM Card & Bank Card',
+        location: 'telecom',
+        icon: '📱',
+        baseCost: 6000,
+        costRange: [3000, 9000],
+        baseTime: 2,
+        waitingDays: 1,
+        languageRequired: 25,
+        description: 'Get a local SIM card and open a bank account'
+    },
+    {
+        id: 'medical',
+        name: 'Medical Certificate',
+        location: 'hospital',
+        icon: '🏥',
+        baseCost: 6000,
+        baseTime: 3,
+        timeRange: [2, 4],
+        waitingDays: 3,
+        languageRequired: 20,
+        description: 'Obtain required medical examination certificate'
+    },
+    {
+        id: 'fingerprint',
+        name: 'Fingerprint Card',
+        location: 'migration',
+        icon: '🏛️',
+        baseCost: 1600, // for students
+        costByPurpose: {
+            study: 1600,
+            work: 16000,
+            tourism: 16000
+        },
+        baseTime: 4.5,
+        timeRange: [3, 6],
+        waitingDays: 5,
+        languageRequired: 25,
+        description: 'Get fingerprinted at the migration center (final document!)'
+    }
+];
+
+// ===== RANDOM EVENTS =====
+const RANDOM_EVENTS = [
+    {
+        id: 'missing-stamp',
+        probability: 0.15,
+        title: '⚠️ Missing Stamp!',
+        description: 'Your medical certificate is missing an official stamp! You need to go back to the hospital.',
+        effects: { money: -1000, daysLeft: -2, stress: 10 },
+        triggerDocument: 'medical'
+    },
+    {
+        id: 'translation-error',
+        probability: 0.12,
+        title: '📄 Translation Error',
+        description: 'Your document translation has errors. You need to pay for a new certified translation.',
+        effects: { money: -1500, daysLeft: -1, stress: 8 },
+        triggerDocument: null
+    },
+    {
+        id: 'helpful-stranger',
+        probability: 0.1,
+        title: '😊 Helpful Stranger',
+        description: 'A kind local helped you navigate the system and gave you useful tips!',
+        effects: { stress: -10, language: 5 },
+        triggerDocument: null
+    },
+    {
+        id: 'long-queue',
+        probability: 0.18,
+        title: '⏰ Unexpected Long Queue',
+        description: 'The queue is much longer than expected. You have to wait an extra day.',
+        effects: { daysLeft: -1, stress: 5 },
+        triggerDocument: null
+    },
+    {
+        id: 'language-help',
+        probability: 0.08,
+        title: '🗣️ Language Practice',
+        description: 'You successfully communicated in Russian and gained confidence!',
+        effects: { language: 8, stress: -5 },
+        triggerDocument: null
+    }
+];
+
+// ===== NATIONALITY VISITOR STATS =====
+const VISITOR_STATS = {
+    'USA': 12500,
+    'China': 45000,
+    'India': 18000,
+    'Germany': 8500,
+    'France': 7200,
+    'UK': 6800,
+    'Japan': 5500,
+    'South Korea': 9200,
+    'Brazil': 3400,
+    'Mexico': 2100,
+    'Turkey': 15000,
+    'Egypt': 4200,
+    'Kazakhstan': 38000,
+    'Vietnam': 7800,
+    'Other': 5000
+};
+
+// ===== INITIALIZATION =====
 document.addEventListener('DOMContentLoaded', () => {
     initCharacterCreation();
 });
 
-// Character Creation
+// ===== CHARACTER CREATION =====
 function initCharacterCreation() {
+    const form = document.getElementById('characterForm');
     const ageSlider = document.getElementById('age');
     const ageDisplay = document.getElementById('ageDisplay');
-    const form = document.getElementById('characterForm');
     const nationality = document.getElementById('nationality');
+    const destination = document.getElementById('destination');
     const purposeRadios = document.querySelectorAll('input[name="purpose"]');
 
-    // Age slider
+    // Age slider update
     ageSlider.addEventListener('input', (e) => {
         ageDisplay.textContent = e.target.value;
-        updateDifficultyPreview();
+        updateCharacterPreview();
     });
 
-    // Nationality change
+    // Nationality selection
     nationality.addEventListener('change', () => {
-        updateDifficultyPreview();
+        updateDestinationStats();
+        updateCharacterPreview();
     });
 
-    // Purpose change
+    // Destination selection
+    destination.addEventListener('change', () => {
+        if (destination.value && destination.value !== 'Moscow') {
+            alert('Sorry, only Moscow is available in this version!');
+            destination.value = 'Moscow';
+        }
+        updateDestinationStats();
+    });
+
+    // Purpose selection
     purposeRadios.forEach(radio => {
-        radio.addEventListener('change', () => {
-            updateDifficultyPreview();
-        });
+        radio.addEventListener('change', updateCharacterPreview);
     });
 
     // Form submission
     form.addEventListener('submit', (e) => {
         e.preventDefault();
-        if (validateCharacterForm()) {
-            createCharacter();
-        }
+        createCharacter();
     });
 }
 
-function updateDifficultyPreview() {
+function updateDestinationStats() {
+    const nationality = document.getElementById('nationality').value;
+    const destination = document.getElementById('destination').value;
+    const statsDiv = document.getElementById('destinationStats');
+
+    if (nationality && destination) {
+        statsDiv.style.display = 'block';
+        document.getElementById('nationalityName').textContent = nationality;
+        document.getElementById('visitorCount').textContent =
+            (VISITOR_STATS[nationality] || 5000).toLocaleString();
+    } else {
+        statsDiv.style.display = 'none';
+    }
+}
+
+function updateCharacterPreview() {
     const age = parseInt(document.getElementById('age').value);
     const nationality = document.getElementById('nationality').value;
     const purpose = document.querySelector('input[name="purpose"]:checked')?.value;
+    const preview = document.getElementById('characterPreview');
+    const content = document.getElementById('previewContent');
 
     if (!nationality || !purpose) {
-        document.getElementById('difficultyPreview').style.display = 'none';
+        preview.style.display = 'none';
         return;
     }
 
-    document.getElementById('difficultyPreview').style.display = 'block';
+    preview.style.display = 'block';
 
-    let difficulty = 'Medium';
-    const tips = [];
+    const stats = calculateStartingResources(age, nationality, purpose);
 
-    if (nationality === 'Belarus') {
-        difficulty = 'Easy';
-        tips.push('✅ Visa process is simplified for Belarusian citizens');
-    }
-
-    if (purpose === 'study') {
-        tips.push('💰 Students have limited budget but better language skills');
-    } else if (purpose === 'business') {
-        tips.push('💰 Business travelers have more money');
-    }
-
-    if (age < 25) {
-        tips.push('⚡ Young travelers have more energy and time');
-    } else if (age > 50) {
-        tips.push('😰 Older travelers may face more stress and fatigue');
-    }
-
-    document.getElementById('difficultyLevel').textContent = difficulty;
-    const tipsList = document.getElementById('tipsList');
-    tipsList.innerHTML = tips.map(tip => `<li>${tip}</li>`).join('');
+    content.innerHTML = `
+        <p><strong>Starting Resources:</strong></p>
+        <ul style="list-style: none; padding-left: 0; margin-top: 0.5rem;">
+            <li>💰 Money: ${stats.money.toLocaleString()}₽</li>
+            <li>⏰ Days: ${stats.daysLeft}</li>
+            <li>🗣️ Language: ${stats.language}%</li>
+            <li>😰 Stress: ${stats.stress}%</li>
+        </ul>
+    `;
 }
 
-function validateCharacterForm() {
-    const age = parseInt(document.getElementById('age').value);
-    const nationality = document.getElementById('nationality').value;
-    const purpose = document.querySelector('input[name="purpose"]:checked')?.value;
+function calculateStartingResources(age, nationality, purpose) {
+    let money = 50000;
+    let daysLeft = 90;
+    let language = 30;
+    let stress = 10;
 
-    let isValid = true;
-
-    // Clear previous errors
-    document.querySelectorAll('.error').forEach(el => el.textContent = '');
-
-    if (age < 18 || age > 99) {
-        document.getElementById('ageError').textContent = 'Age must be between 18 and 99';
-        isValid = false;
+    // Adjust by purpose
+    if (purpose === 'study') {
+        money = 50000;
+        language = 30;
+    } else if (purpose === 'work') {
+        money = 100000;
+        language = 15;
+        stress = 15;
+    } else if (purpose === 'tourism') {
+        money = 70000;
+        language = 10;
+        daysLeft = 60;
     }
 
-    if (!nationality) {
-        document.getElementById('nationalityError').textContent = 'Please select your nationality';
-        isValid = false;
+    // Adjust by age
+    if (age < 25) {
+        language += 10;
+        stress -= 5;
+    } else if (age > 50) {
+        stress += 10;
+        money += 20000;
     }
 
-    if (!purpose) {
-        document.getElementById('purposeError').textContent = 'Please select your purpose of visit';
-        isValid = false;
+    // Adjust by nationality (CIS countries)
+    if (['Kazakhstan', 'Belarus', 'Armenia'].includes(nationality)) {
+        language += 20;
+        stress -= 10;
     }
 
-    return isValid;
+    return { money, daysLeft, language: Math.min(language, 100), stress: Math.max(stress, 0) };
 }
 
 function createCharacter() {
     const age = parseInt(document.getElementById('age').value);
     const nationality = document.getElementById('nationality').value;
+    const destination = document.getElementById('destination').value;
     const purpose = document.querySelector('input[name="purpose"]:checked').value;
 
-    gameState.character = { age, nationality, purpose };
-
-    // Adjust initial resources based on character
-    if (nationality === 'Belarus') {
-        gameState.resources.stress = 5;
-        gameState.resources.time = 120;
-    } else {
-        gameState.resources.stress = 15;
+    if (destination !== 'Moscow') {
+        alert('Please select Moscow as destination (other cities coming soon!)');
+        return;
     }
 
-    if (purpose === 'study') {
-        gameState.resources.money = 5000;
-        gameState.resources.language = 30;
-    } else if (purpose === 'business') {
-        gameState.resources.money = 50000;
-        gameState.resources.language = 10;
-    } else {
-        gameState.resources.money = 15000;
-        gameState.resources.language = 5;
-    }
+    // Create character
+    gameState.character = { age, nationality, destination, purpose };
 
-    if (age < 25) {
-        gameState.resources.time = 120;
-    } else if (age > 50) {
-        gameState.resources.time = 80;
-        gameState.resources.stress = 20;
-    }
+    // Set starting resources
+    const stats = calculateStartingResources(age, nationality, purpose);
+    gameState.resources = {
+        ...stats,
+        documents: []
+    };
 
-    // Show resource bar
+    // Set game start time
+    gameState.gameStartTime = Date.now();
+
+    // Show resource bar and start game
     document.getElementById('resourceBar').style.display = 'flex';
     updateResourceDisplay();
 
-    // Start arrival scene
-    showScreen('arrivalScene');
-    startArrivalScene();
+    showScreen('gameMap');
+    updateMapState();
 }
 
-// Screen Management
+// ===== SCREEN MANAGEMENT =====
 function showScreen(screenId) {
     document.querySelectorAll('.screen').forEach(screen => {
-        screen.style.display = 'none';
+        screen.classList.remove('active');
     });
-    document.getElementById(screenId).style.display = 'block';
-    gameState.screen = screenId;
+    document.getElementById(screenId).classList.add('active');
 }
 
-// Resource Management
-function updateResources(updates) {
-    if (updates.money !== undefined) gameState.resources.money += updates.money;
-    if (updates.time !== undefined) gameState.resources.time += updates.time;
-    if (updates.stress !== undefined) gameState.resources.stress += updates.stress;
-    if (updates.language !== undefined) gameState.resources.language += updates.language;
-    if (updates.documents) {
-        Object.assign(gameState.resources.documents, updates.documents);
-    }
-    updateResourceDisplay();
-}
-
+// ===== RESOURCE MANAGEMENT =====
 function updateResourceDisplay() {
-    document.getElementById('money').textContent = Math.max(0, gameState.resources.money);
-    document.getElementById('time').textContent = Math.max(0, gameState.resources.time);
-    document.getElementById('stress').textContent = Math.max(0, Math.min(100, gameState.resources.stress));
-    document.getElementById('language').textContent = Math.max(0, Math.min(100, gameState.resources.language));
+    document.getElementById('daysLeft').textContent = gameState.resources.daysLeft;
+    document.getElementById('money').textContent = Math.max(0, gameState.resources.money).toLocaleString();
+    document.getElementById('docsProgress').textContent =
+        `${gameState.resources.documents.length}/6`;
+    document.getElementById('language').textContent =
+        Math.max(0, Math.min(100, Math.round(gameState.resources.language)));
+    document.getElementById('stress').textContent =
+        Math.max(0, Math.min(100, Math.round(gameState.resources.stress)));
 }
 
-// Arrival Scene
-function startArrivalScene() {
-    gameState.messages = [];
-    gameState.arrivalStage = 'customs-line';
+function updateResources(changes) {
+    if (changes.daysLeft !== undefined) {
+        gameState.resources.daysLeft += changes.daysLeft;
+    }
+    if (changes.money !== undefined) {
+        gameState.resources.money += changes.money;
+    }
+    if (changes.language !== undefined) {
+        gameState.resources.language = Math.max(0, Math.min(100,
+            gameState.resources.language + changes.language));
+    }
+    if (changes.stress !== undefined) {
+        gameState.resources.stress = Math.max(0, Math.min(100,
+            gameState.resources.stress + changes.stress));
+    }
 
-    const messagesDiv = document.getElementById('arrivalMessages');
-    const choicesDiv = document.getElementById('arrivalChoices');
+    updateResourceDisplay();
+    checkGameOver();
+}
 
-    addMessage('⏳ Waiting in queue... Please make a choice while waiting.');
+function checkGameOver() {
+    const { daysLeft, money, stress } = gameState.resources;
 
-    messagesDiv.innerHTML = gameState.messages.map(msg => `<div class="message">${msg}</div>`).join('');
+    // Check failure conditions
+    if (daysLeft <= 0) {
+        endGame(false, 'Time ran out! You failed to complete all documents within 90 days.');
+        return true;
+    }
 
-    choicesDiv.innerHTML = `
-        <h3>What do you do while waiting?</h3>
-        <button class="choice-btn" onclick="handleCustomsChoice('wait')">📱 Wait patiently and check your phone</button>
-        <button class="choice-btn" onclick="handleCustomsChoice('ask-help')" ${gameState.resources.language < 10 ? 'disabled' : ''}>
-            🗣️ Ask someone for help in Russian${gameState.resources.language < 10 ? ' (Need 10% Russian)' : ''}
-        </button>
+    if (money < 0) {
+        endGame(false, 'You ran out of money! You cannot continue without funds.');
+        return true;
+    }
+
+    if (stress >= 100) {
+        endGame(false, 'Stress overload! The bureaucratic maze was too overwhelming.');
+        return true;
+    }
+
+    // Check victory condition
+    if (gameState.resources.documents.length === 6) {
+        endGame(true, 'Congratulations! You successfully obtained all required documents!');
+        return true;
+    }
+
+    return false;
+}
+
+// ===== MAP MANAGEMENT =====
+function updateMapState() {
+    const nextDoc = DOCUMENTS[gameState.currentDocument];
+
+    // Update all location cards
+    DOCUMENTS.forEach((doc, index) => {
+        const card = document.getElementById(`loc-${doc.location}`);
+
+        if (gameState.resources.documents.includes(doc.id)) {
+            // Completed
+            card.classList.remove('locked', 'active');
+            card.classList.add('completed');
+            card.querySelector('.location-status').textContent = 'Completed ✓';
+        } else if (index === gameState.currentDocument) {
+            // Current/Active
+            card.classList.remove('locked', 'completed');
+            card.classList.add('active');
+            card.querySelector('.location-status').textContent = 'Available';
+            card.style.cursor = 'pointer';
+            card.onclick = () => openLocation(doc.location);
+        } else {
+            // Locked
+            card.classList.add('locked');
+            card.classList.remove('active', 'completed');
+            card.querySelector('.location-status').textContent = 'Locked';
+            card.style.cursor = 'not-allowed';
+            card.onclick = null;
+        }
+    });
+
+    // Update current task
+    if (nextDoc) {
+        document.getElementById('taskDescription').textContent =
+            `Go to ${formatLocationName(nextDoc.location)} to get: ${nextDoc.name}`;
+    }
+}
+
+function formatLocationName(location) {
+    const names = {
+        'airport': 'the Airport',
+        'accommodation': 'your Accommodation',
+        'university': 'the University',
+        'telecom': 'the Phone Shop & Bank',
+        'hospital': 'the Hospital',
+        'migration': 'the Migration Center'
+    };
+    return names[location] || location;
+}
+
+// ===== LOCATION MANAGEMENT =====
+function openLocation(locationId) {
+    const doc = DOCUMENTS[gameState.currentDocument];
+
+    if (doc.location !== locationId) {
+        alert('This location is not available yet!');
+        return;
+    }
+
+    // Skip if purpose doesn't match (e.g., university for non-students)
+    if (doc.requiredPurpose && gameState.character.purpose !== doc.requiredPurpose) {
+        // Skip this document
+        gameState.resources.documents.push(doc.id);
+        gameState.currentDocument++;
+        updateMapState();
+        return;
+    }
+
+    showScreen('locationScreen');
+    renderLocationContent(doc);
+
+    // Setup back button
+    document.getElementById('btnBack').onclick = () => {
+        showScreen('gameMap');
+    };
+}
+
+function renderLocationContent(doc) {
+    document.getElementById('locationTitle').textContent =
+        `${doc.icon} ${formatLocationName(doc.location)}`;
+
+    const content = document.getElementById('locationContent');
+
+    // Check if requirements are met
+    const canProceed = gameState.resources.language >= doc.languageRequired;
+    const hasMoney = gameState.resources.money >= doc.baseCost;
+
+    content.innerHTML = `
+        <div class="location-description">
+            <p>${doc.description}</p>
+        </div>
+
+        <div class="document-requirements">
+            <h3>📋 Requirements</h3>
+            <ul class="requirement-list">
+                <li class="${gameState.resources.language >= doc.languageRequired ? 'requirement-met' : 'requirement-unmet'}">
+                    ${gameState.resources.language >= doc.languageRequired ? '✅' : '❌'}
+                    Russian Language: ${doc.languageRequired}% (You have: ${Math.round(gameState.resources.language)}%)
+                </li>
+                <li class="${hasMoney ? 'requirement-met' : 'requirement-unmet'}">
+                    ${hasMoney ? '✅' : '❌'}
+                    Money: ${doc.baseCost.toLocaleString()}₽ (You have: ${gameState.resources.money.toLocaleString()}₽)
+                </li>
+                <li>⏰ Time Required: ${doc.baseTime} hours ${doc.waitingDays > 0 ? `+ ${doc.waitingDays} days waiting` : ''}</li>
+            </ul>
+        </div>
+
+        ${renderActionOptions(doc, canProceed, hasMoney)}
     `;
 }
 
-function addMessage(msg) {
-    gameState.messages.push(msg);
-    updateMessages('arrivalMessages');
-}
-
-function updateMessages(divId) {
-    const messagesDiv = document.getElementById(divId);
-    messagesDiv.innerHTML = gameState.messages.map(msg => `<div class="message">${msg}</div>`).join('');
-    messagesDiv.scrollTop = messagesDiv.scrollHeight;
-}
-
-function handleCustomsChoice(choice) {
-    const choicesDiv = document.getElementById('arrivalChoices');
-
-    if (choice === 'wait') {
-        addMessage('You patiently wait in the long queue, observing other travelers...');
-        updateResources({ time: -5, stress: 3 });
-    } else if (choice === 'ask-help') {
-        if (gameState.resources.language >= 20) {
-            addMessage('You successfully ask someone in Russian where to go. They help you!');
-            updateResources({ time: -2, stress: -2, language: 2 });
-        } else {
-            addMessage('You try to ask in broken Russian, but create confusion. You end up waiting longer...');
-            updateResources({ time: -8, stress: 5 });
-        }
+function renderActionOptions(doc, canProceed, hasMoney) {
+    if (!canProceed) {
+        return `
+            <div class="action-options">
+                <div class="action-card disabled">
+                    <h4>❌ Insufficient Language Skills</h4>
+                    <p>You need to improve your Russian before you can proceed here.
+                    Consider studying or finding help.</p>
+                </div>
+                <button class="btn-secondary" onclick="showScreen('gameMap')">
+                    Go Back and Prepare
+                </button>
+            </div>
+        `;
     }
 
-    setTimeout(() => {
-        addMessage('You reach the customs officer. They look at you and gesture for your documents.');
-        showCustomsInteractionChoices();
-    }, 1000);
-}
+    if (!hasMoney) {
+        return `
+            <div class="action-options">
+                <div class="action-card disabled">
+                    <h4>❌ Insufficient Funds</h4>
+                    <p>You don't have enough money for this document.
+                    You need ${doc.baseCost.toLocaleString()}₽ but only have ${gameState.resources.money.toLocaleString()}₽.</p>
+                </div>
+                <button class="btn-secondary" onclick="showScreen('gameMap')">
+                    Go Back
+                </button>
+            </div>
+        `;
+    }
 
-function showCustomsInteractionChoices() {
-    const choicesDiv = document.getElementById('arrivalChoices');
-    choicesDiv.innerHTML = `
-        <h3>How do you approach the customs officer?</h3>
-        <button class="choice-btn" onclick="handleCustomsInteraction('smile')">😊 Smile and be polite</button>
-        <button class="choice-btn" onclick="handleCustomsInteraction('rush')">⚡ Look impatient (you want to get through quickly)</button>
-        <button class="choice-btn" onclick="handleCustomsInteraction('russian')" ${gameState.resources.language < 15 ? 'disabled' : ''}>
-            🇷🇺 Greet them in Russian${gameState.resources.language < 15 ? ' (Need 15% Russian)' : ''}
-        </button>
+    // Standard option
+    let options = `
+        <div class="action-options">
+            <div class="action-card" onclick="processDocument('standard')">
+                <h4>📝 Standard Processing</h4>
+                <p>${doc.description}</p>
+                <div class="action-cost">
+                    <span class="cost-item">💰 ${doc.baseCost.toLocaleString()}₽</span>
+                    <span class="cost-item">⏰ ${doc.baseTime} hours</span>
+                    <span class="cost-item">🗣️ ${doc.languageRequired}% Russian</span>
+                </div>
+            </div>
     `;
-}
 
-function handleCustomsInteraction(choice) {
-    if (choice === 'smile') {
-        addMessage('You smile and hand over your documents politely.');
-        gameState.customsOfficerMood = 'neutral';
-
-        if (gameState.character.nationality === 'Belarus') {
-            addMessage('The officer smiles slightly seeing your Belarusian passport. "Welcome," they say.');
-            updateResources({ stress: -3 });
-            gameState.customsOfficerMood = 'friendly';
-        } else {
-            addMessage('The officer takes your passport and examines it carefully...');
-        }
-    } else if (choice === 'rush') {
-        addMessage('You seem impatient. The officer gives you a stern look.');
-        addMessage('"Papers," they say coldly in Russian.');
-        gameState.customsOfficerMood = 'annoyed';
-        updateResources({ stress: 8 });
-    } else if (choice === 'russian') {
-        if (gameState.resources.language >= 30) {
-            addMessage('You greet them in Russian: "Добрый день!" The officer nods approvingly.');
-            gameState.customsOfficerMood = 'friendly';
-            updateResources({ stress: -5, language: 3 });
-        } else {
-            addMessage('You attempt Russian but mispronounce badly. The officer looks confused.');
-            gameState.customsOfficerMood = 'confused';
-            updateResources({ stress: 3 });
-        }
+    // Express option (more expensive, faster)
+    if (doc.baseCost > 0) {
+        const expressCost = doc.baseCost + 3000;
+        const expressTime = Math.max(1, doc.baseTime - 1);
+        options += `
+            <div class="action-card" onclick="processDocument('express')">
+                <h4>⚡ Express Processing</h4>
+                <p>Pay extra to speed up the process and reduce language requirements.</p>
+                <div class="action-cost">
+                    <span class="cost-item">💰 ${expressCost.toLocaleString()}₽</span>
+                    <span class="cost-item">⏰ ${expressTime} hours</span>
+                    <span class="cost-item">🗣️ ${Math.max(0, doc.languageRequired - 10)}% Russian</span>
+                </div>
+            </div>
+        `;
     }
 
-    setTimeout(() => {
-        processDocuments();
-    }, 1500);
+    options += `</div>`;
+    return options;
 }
 
-function processDocuments() {
-    const choicesDiv = document.getElementById('arrivalChoices');
+// ===== DOCUMENT PROCESSING =====
+function processDocument(mode) {
+    const doc = DOCUMENTS[gameState.currentDocument];
 
-    if (gameState.customsOfficerMood === 'friendly' || gameState.character.nationality === 'Belarus') {
-        addMessage('The officer quickly checks your documents and stamps your passport.');
-        addMessage('You receive your migration card. Keep it safe - you need it for registration!');
-        updateResources({ time: -3 });
-        gameState.resources.documents.migrationCard = true;
-    } else if (gameState.customsOfficerMood === 'annoyed') {
-        addMessage('The officer takes their time, asking many questions in Russian...');
+    let cost = doc.baseCost;
+    let time = doc.baseTime;
+    let languageReq = doc.languageRequired;
 
-        if (gameState.resources.language < 15) {
-            addMessage('You struggle to understand. You have to call a translator. This takes time.');
-            updateResources({ time: -15, stress: 10, money: -500 });
-        } else {
-            addMessage('You manage to answer in basic Russian. Finally, they let you through.');
-            updateResources({ time: -10, stress: 5, language: 5 });
-        }
+    if (mode === 'express') {
+        cost = doc.baseCost + 3000;
+        time = Math.max(1, doc.baseTime - 1);
+        languageReq = Math.max(0, doc.languageRequired - 10);
+    }
 
-        addMessage('You receive your migration card.');
-        gameState.resources.documents.migrationCard = true;
+    // Add some randomness
+    const randomTimeFactor = 0.8 + Math.random() * 0.4; // 0.8 to 1.2
+    time = Math.round(time * randomTimeFactor);
+
+    // Apply costs
+    updateResources({
+        money: -cost,
+        daysLeft: -Math.ceil(time / 24), // Convert hours to days
+        stress: Math.round(5 + Math.random() * 5)
+    });
+
+    // Check for random events
+    triggerRandomEvent(doc);
+
+    // If there's a waiting period, show waiting screen
+    if (doc.waitingDays > 0) {
+        startWaiting(doc, doc.waitingDays);
     } else {
-        addMessage('The officer processes your documents normally.');
-        addMessage('You receive your migration card. Remember to register within 7 days!');
-        updateResources({ time: -5, stress: 2 });
-        gameState.resources.documents.migrationCard = true;
+        completeDocument(doc);
     }
-
-    choicesDiv.innerHTML = `
-        <button class="btn-primary btn-large" onclick="completeArrivalScene()">
-            Continue to Transport Selection →
-        </button>
-    `;
 }
 
-function completeArrivalScene() {
-    addMessage('✅ You have successfully cleared customs and received your migration card!');
+// ===== WAITING SYSTEM =====
+function startWaiting(doc, days) {
+    gameState.waitingState = {
+        document: doc,
+        daysRemaining: days,
+        totalDays: days,
+        activity: null
+    };
+
+    showScreen('waitingScreen');
+
+    document.getElementById('waitingTitle').textContent =
+        `Processing ${doc.name}...`;
+    document.getElementById('waitingDescription').textContent =
+        `Your documents are being processed. This will take ${days} days. You can use this time productively.`;
+    document.getElementById('waitingDaysLeft').textContent = days;
+
+    updateWaitingProgress();
+
+    // Setup activity buttons
+    document.getElementById('btnStudyLanguage').onclick = () => setWaitingActivity('language');
+    document.getElementById('btnPartTimeWork').onclick = () => setWaitingActivity('work');
+    document.getElementById('btnRest').onclick = () => setWaitingActivity('rest');
+    document.getElementById('btnSkipWait').onclick = skipWaiting;
+}
+
+function setWaitingActivity(activity) {
+    gameState.waitingState.activity = activity;
+
+    // Highlight selected button
+    document.querySelectorAll('.waiting-actions .btn-secondary').forEach(btn => {
+        btn.style.background = 'white';
+        btn.style.color = '#667eea';
+    });
+
+    if (activity === 'language') {
+        document.getElementById('btnStudyLanguage').style.background = '#667eea';
+        document.getElementById('btnStudyLanguage').style.color = 'white';
+    } else if (activity === 'work') {
+        document.getElementById('btnPartTimeWork').style.background = '#667eea';
+        document.getElementById('btnPartTimeWork').style.color = 'white';
+    } else if (activity === 'rest') {
+        document.getElementById('btnRest').style.background = '#667eea';
+        document.getElementById('btnRest').style.color = 'white';
+    }
+}
+
+function updateWaitingProgress() {
+    const { daysRemaining, totalDays } = gameState.waitingState;
+    const progress = ((totalDays - daysRemaining) / totalDays) * 100;
+
+    document.getElementById('waitingProgress').style.width = `${progress}%`;
+    document.getElementById('waitingDaysLeft').textContent = daysRemaining;
+}
+
+function skipWaiting() {
+    const { document: doc, daysRemaining, activity } = gameState.waitingState;
+
+    // Apply effects based on waiting activity
+    const changes = { daysLeft: -daysRemaining };
+
+    if (activity === 'language') {
+        changes.language = daysRemaining * 1; // +1% per day
+        changes.stress = -2;
+    } else if (activity === 'work') {
+        changes.money = daysRemaining * 500; // +500₽ per day
+        changes.stress = 3;
+    } else if (activity === 'rest') {
+        changes.stress = -daysRemaining * 5; // -5% per day
+    } else {
+        // No activity selected - mild stress increase
+        changes.stress = 3;
+    }
+
+    updateResources(changes);
+
+    gameState.waitingState = null;
+    completeDocument(doc);
+}
+
+// ===== DOCUMENT COMPLETION =====
+function completeDocument(doc) {
+    // Add document to completed list
+    gameState.resources.documents.push(doc.id);
+    gameState.completedLocations.push(doc.location);
+    gameState.currentDocument++;
+
+    // Show completion message
+    showEvent(
+        '✅',
+        'Document Obtained!',
+        `You have successfully obtained your ${doc.name}! ${6 - gameState.currentDocument} documents remaining.`,
+        () => {
+            showScreen('gameMap');
+            updateMapState();
+            checkGameOver();
+        }
+    );
+}
+
+// ===== RANDOM EVENTS =====
+function triggerRandomEvent(currentDoc) {
+    // Filter applicable events
+    const applicableEvents = RANDOM_EVENTS.filter(event => {
+        if (event.triggerDocument && event.triggerDocument !== currentDoc.id) {
+            return false;
+        }
+        return Math.random() < event.probability;
+    });
+
+    if (applicableEvents.length === 0) return;
+
+    // Pick random event
+    const event = applicableEvents[Math.floor(Math.random() * applicableEvents.length)];
+
     setTimeout(() => {
-        showScreen('transportScene');
-        startTransportScene();
-    }, 1000);
+        showEvent(
+            event.title.split(' ')[0],
+            event.title.substring(event.title.indexOf(' ') + 1),
+            event.description,
+            () => {
+                updateResources(event.effects);
+            }
+        );
+    }, 500);
 }
 
-// Transport Scene
-function startTransportScene() {
-    gameState.messages = [];
-    gameState.transportStage = 'choice';
+// ===== EVENT MODAL =====
+function showEvent(icon, title, description, callback) {
+    const modal = document.getElementById('eventModal');
+    document.getElementById('eventIcon').textContent = icon;
+    document.getElementById('eventTitle').textContent = title;
+    document.getElementById('eventDescription').textContent = description;
 
-    const choicesDiv = document.getElementById('transportChoices');
-    choicesDiv.innerHTML = `
-        <h3>Choose your transport:</h3>
-        <div class="transport-options">
-            <div class="transport-card">
-                <div class="transport-header">🚖 Taxi</div>
-                <div class="transport-details">
-                    <p><strong>Cost:</strong> 1500-3000₽ (depends on negotiation)</p>
-                    <p><strong>Time:</strong> ~8-12 units</p>
-                    <p><strong>Difficulty:</strong> May require Russian communication</p>
-                </div>
-                <button class="choice-btn" onclick="handleTransportChoice('taxi')">Choose Taxi</button>
-            </div>
+    modal.classList.add('active');
 
-            <div class="transport-card">
-                <div class="transport-header">🚇 Metro (Aeroexpress + Metro)</div>
-                <div class="transport-details">
-                    <p><strong>Cost:</strong> ~700₽ (cheapest option)</p>
-                    <p><strong>Time:</strong> ~20-40 units (can get lost)</p>
-                    <p><strong>Difficulty:</strong> Requires navigation skills & Russian</p>
-                </div>
-                <button class="choice-btn" onclick="handleTransportChoice('metro')">Choose Metro</button>
-            </div>
-
-            <div class="transport-card easy-mode">
-                <div class="transport-header">👥 Friend Pickup</div>
-                <div class="transport-details">
-                    <p><strong>Cost:</strong> 0₽ (free!)</p>
-                    <p><strong>Time:</strong> ~10 units</p>
-                    <p><strong>Difficulty:</strong> Easy mode - stress free!</p>
-                </div>
-                <button class="choice-btn" onclick="handleTransportChoice('friend')">Call Your Friend</button>
-            </div>
-        </div>
-    `;
+    document.getElementById('btnEventClose').onclick = () => {
+        modal.classList.remove('active');
+        if (callback) callback();
+    };
 }
 
-function addTransportMessage(msg) {
-    gameState.messages.push(msg);
-    updateMessages('transportMessages');
-}
+// ===== GAME END =====
+function endGame(victory, message) {
+    showScreen('resultsScreen');
 
-function handleTransportChoice(choice) {
-    const messagesDiv = document.getElementById('transportMessages');
-    const choicesDiv = document.getElementById('transportChoices');
+    const icon = document.getElementById('resultIcon');
+    const title = document.getElementById('resultTitle');
+    const subtitle = document.getElementById('resultSubtitle');
+    const content = document.getElementById('resultsContent');
 
-    messagesDiv.style.display = 'block';
-
-    if (choice === 'taxi') {
-        addTransportMessage('🚖 You exit the airport and look for a taxi...');
-        addTransportMessage('Several drivers approach you, offering rides.');
-
-        setTimeout(() => {
-            choicesDiv.innerHTML = `
-                <h3>How do you handle the taxi situation?</h3>
-                <button class="choice-btn" onclick="handleTaxiChoice('official')">
-                    🏢 Use official taxi stand (2000₽, safe)
-                </button>
-                <button class="choice-btn" onclick="handleTaxiChoice('negotiate')" ${gameState.resources.language < 20 ? 'disabled' : ''}>
-                    💬 Negotiate with driver in Russian${gameState.resources.language < 20 ? ' (Need 20% Russian)' : ''}
-                </button>
-                <button class="choice-btn" onclick="handleTaxiChoice('card')">
-                    💳 Ask about card payment
-                </button>
-            `;
-        }, 1000);
-    } else if (choice === 'metro') {
-        addTransportMessage('🚇 You decide to take the metro. It\'s much cheaper!');
-        addTransportMessage('You follow signs (in Cyrillic) to the Aeroexpress train.');
-
-        setTimeout(() => {
-            choicesDiv.innerHTML = `
-                <h3>How do you navigate the metro system?</h3>
-                <button class="choice-btn" onclick="handleMetroChoice('figure')">
-                    🧠 Try to figure it out yourself
-                </button>
-                <button class="choice-btn" onclick="handleMetroChoice('ask')">
-                    🗣️ Ask someone for help
-                </button>
-                <button class="choice-btn" onclick="handleMetroChoice('giveup')">
-                    😰 Give up and take a taxi instead
-                </button>
-            `;
-        }, 1000);
-    } else if (choice === 'friend') {
-        addTransportMessage('📱 You call your friend who\'s already in Moscow.');
-        addTransportMessage('They arrive in 20 minutes and greet you warmly!');
-        addTransportMessage('They help you navigate everything and take you to your accommodation.');
-
-        updateResources({ money: 0, time: -10, stress: -15 });
-
-        setTimeout(() => {
-            addTransportMessage('✅ Having a friend here makes everything so much easier! (Easy mode activated)');
-            completeTransportScene();
-        }, 2000);
-    }
-}
-
-function handleTaxiChoice(choice) {
-    const choicesDiv = document.getElementById('transportChoices');
-
-    if (choice === 'official') {
-        addTransportMessage('You find the official taxi stand. The fare is 2000₽ to the city center.');
-        addTransportMessage('The driver speaks some English and accepts card payment.');
-        updateResources({ money: -2000, time: -8, stress: -5 });
-        addTransportMessage('✅ You arrive safely at your destination with minimal stress!');
-    } else if (choice === 'negotiate') {
-        if (gameState.resources.language >= 40) {
-            addTransportMessage('You negotiate in Russian and agree on 1200₽.');
-            addTransportMessage('The driver is impressed by your Russian skills!');
-            updateResources({ money: -1200, time: -10, stress: -2, language: 5 });
-            addTransportMessage('✅ You saved money and practiced your Russian!');
-        } else {
-            addTransportMessage('You try to negotiate but struggle with Russian...');
-            addTransportMessage('The driver takes advantage and charges you 3000₽!');
-            updateResources({ money: -3000, time: -12, stress: 10 });
-            addTransportMessage('😓 You feel cheated but at least you arrived...');
-        }
-    } else if (choice === 'card') {
-        addTransportMessage('You ask about payment methods...');
-
-        if (gameState.resources.language >= 25) {
-            addTransportMessage('You successfully ask "Можно картой?" (Can I pay by card?)');
-            addTransportMessage('The driver says yes. You pay 2000₽ by card.');
-            updateResources({ money: -2000, time: -9, stress: 2, language: 3 });
-            addTransportMessage('✅ Payment successful!');
-        } else {
-            addTransportMessage('You struggle to communicate about payment...');
-            addTransportMessage('You end up paying 2500₽ in cash (the only option you understood).');
-            updateResources({ money: -2500, time: -10, stress: 8 });
-            addTransportMessage('😰 The language barrier made this stressful...');
-        }
+    if (victory) {
+        icon.textContent = '🎉';
+        title.textContent = 'Congratulations!';
+        subtitle.textContent = message;
+    } else {
+        icon.textContent = '😞';
+        title.textContent = 'Game Over';
+        subtitle.textContent = message;
     }
 
-    setTimeout(() => completeTransportScene(), 2000);
-}
+    // Calculate score
+    const score = calculateScore(victory);
 
-function handleMetroChoice(choice) {
-    const choicesDiv = document.getElementById('transportChoices');
-
-    if (choice === 'figure') {
-        if (gameState.resources.language >= 35) {
-            addTransportMessage('You read the signs in Russian and successfully purchase an Aeroexpress ticket.');
-            addTransportMessage('Then you navigate to the metro and buy a Troika card.');
-            addTransportMessage('The journey is smooth. Total cost: 700₽');
-            updateResources({ money: -700, time: -25, stress: 5, language: 8 });
-            addTransportMessage('✅ You successfully navigated the metro system!');
-        } else {
-            addTransportMessage('You struggle with the ticket machines (all in Russian)...');
-            addTransportMessage('After 20 minutes of confusion, you finally get help from a kind stranger.');
-            addTransportMessage('You eventually make it, but it was exhausting.');
-            updateResources({ money: -700, time: -40, stress: 15, language: 5 });
-            addTransportMessage('😓 You made it, but you\'re exhausted from the confusion...');
-        }
-    } else if (choice === 'ask') {
-        addTransportMessage('You approach a young person who looks friendly...');
-
-        if (gameState.resources.language >= 15) {
-            addTransportMessage('You ask in simple Russian: "Помогите, пожалуйста" (Help, please)');
-            addTransportMessage('They help you buy tickets and show you the way!');
-            updateResources({ money: -700, time: -20, stress: -3, language: 7 });
-            addTransportMessage('✅ Kindness of strangers! You made it safely and learned more Russian!');
-        } else {
-            addTransportMessage('You struggle to communicate, using hand gestures...');
-            addTransportMessage('They eventually understand and help, but it takes time.');
-            updateResources({ money: -700, time: -30, stress: 8, language: 3 });
-            addTransportMessage('😅 Communication was hard, but you got help.');
-        }
-    } else if (choice === 'giveup') {
-        addTransportMessage('The metro is too confusing. You decide to get a taxi instead...');
-        addTransportMessage('You end up paying 2500₽ for a taxi from the airport.');
-        updateResources({ money: -2500, time: -15, stress: 12 });
-        addTransportMessage('😞 You gave up on the metro and spent more money...');
-    }
-
-    setTimeout(() => completeTransportScene(), 2000);
-}
-
-function completeTransportScene() {
-    const choicesDiv = document.getElementById('transportChoices');
-    choicesDiv.innerHTML = `
-        <button class="btn-primary btn-large" onclick="showResults()">
-            Continue to Results →
-        </button>
-    `;
-}
-
-// Results
-function showResults() {
-    showScreen('resultsScene');
-
-    const { score, maxScore, percentage } = calculateScore();
-    const rank = getRank(percentage);
-    const insights = getInsights();
-
-    const resultsDiv = document.getElementById('resultsContent');
-    resultsDiv.innerHTML = `
-        <div class="rank-display">
-            <div class="rank-badge">
-                <div class="rank-emoji">${rank.emoji}</div>
-                <div class="rank-letter">${rank.rank}</div>
-            </div>
-            <h2>${rank.title}</h2>
-            <div class="score-display">
-                <div class="score-number">${score}/${maxScore}</div>
-                <div class="score-percentage">${percentage.toFixed(1)}%</div>
+    content.innerHTML = `
+        <div class="result-section">
+            <h3>📊 Final Statistics</h3>
+            <div class="stats-grid">
+                <div class="stat-card">
+                    <div class="stat-label">Days Remaining</div>
+                    <div class="stat-value">${gameState.resources.daysLeft}</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-label">Money Remaining</div>
+                    <div class="stat-value">${gameState.resources.money.toLocaleString()}₽</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-label">Documents Collected</div>
+                    <div class="stat-value">${gameState.resources.documents.length}/6</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-label">Russian Proficiency</div>
+                    <div class="stat-value">${Math.round(gameState.resources.language)}%</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-label">Stress Level</div>
+                    <div class="stat-value">${Math.round(gameState.resources.stress)}%</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-label">Overall Score</div>
+                    <div class="stat-value">${score.total}/100</div>
+                </div>
             </div>
         </div>
 
-        <div class="stats-breakdown">
-            <h3>📊 Performance Breakdown</h3>
-            <div class="stat-item">
-                <span class="stat-label">💰 Money Remaining:</span>
-                <span class="stat-value">${gameState.resources.money}₽</span>
-            </div>
-            <div class="stat-item">
-                <span class="stat-label">⏱️ Time Remaining:</span>
-                <span class="stat-value">${gameState.resources.time} units</span>
-            </div>
-            <div class="stat-item">
-                <span class="stat-label">😰 Stress Level:</span>
-                <span class="stat-value">${gameState.resources.stress}%</span>
-            </div>
-            <div class="stat-item">
-                <span class="stat-label">🗣️ Russian Proficiency:</span>
-                <span class="stat-value">${gameState.resources.language}%</span>
-            </div>
-            <div class="stat-item">
-                <span class="stat-label">📄 Documents:</span>
-                <span class="stat-value">${gameState.resources.documents.migrationCard ? '✅ Migration Card' : '❌ No Migration Card'}</span>
-            </div>
+        <div class="result-section">
+            <h3>💡 Performance Analysis</h3>
+            ${generatePerformanceAnalysis(score)}
         </div>
 
-        ${insights.length > 0 ? `
-            <div class="insights-section">
-                <h3>💡 Insights & Tips</h3>
-                <ul class="insights-list">
-                    ${insights.map(insight => `<li>${insight}</li>`).join('')}
-                </ul>
-            </div>
-        ` : ''}
-
-        <div class="character-summary">
+        <div class="result-section">
             <h3>👤 Your Character</h3>
             <p><strong>Nationality:</strong> ${gameState.character.nationality}</p>
             <p><strong>Age:</strong> ${gameState.character.age}</p>
             <p><strong>Purpose:</strong> ${gameState.character.purpose}</p>
+            <p><strong>Destination:</strong> ${gameState.character.destination}</p>
         </div>
 
-        <div class="next-steps">
-            <h3>🔜 Coming Soon</h3>
-            <p>This demo covers the first day of settling in Moscow. Future updates will include:</p>
-            <ul>
-                <li>🏥 Hospital & Medical Examination</li>
-                <li>🏛️ Immigration Office (получение РВП/ВНЖ)</li>
-                <li>📋 Government Service Center (Мои документы)</li>
-                <li>🏠 Finding and Renting an Apartment</li>
-                <li>💼 Job Hunting</li>
-                <li>👥 Making Friends & Socializing</li>
-                <li>🚔 Dealing with Police (document checks)</li>
-            </ul>
-        </div>
-
-        <div class="action-buttons">
-            <button class="btn-primary btn-large" onclick="location.reload()">
-                🔄 Play Again
-            </button>
-        </div>
+        ${victory ? generateResourceLinks() : ''}
     `;
 }
 
-function calculateScore() {
-    let score = 0;
-    const maxScore = 100;
+function calculateScore(victory) {
+    const { daysLeft, money, documents, language, stress } = gameState.resources;
 
-    // Money management (30 points)
-    const moneyPercent = (gameState.resources.money / 10000) * 100;
-    if (moneyPercent > 80) score += 30;
-    else if (moneyPercent > 50) score += 20;
-    else if (moneyPercent > 20) score += 10;
-    else score += 5;
+    let score = {
+        time: 0,
+        money: 0,
+        documents: 0,
+        language: 0,
+        stress: 0,
+        total: 0
+    };
 
-    // Time management (20 points)
-    const timePercent = (gameState.resources.time / 100) * 100;
-    if (timePercent > 60) score += 20;
-    else if (timePercent > 40) score += 15;
-    else if (timePercent > 20) score += 10;
-    else score += 5;
+    // Documents (40 points max)
+    score.documents = (documents.length / 6) * 40;
 
-    // Stress management (20 points) - lower is better
-    if (gameState.resources.stress < 20) score += 20;
-    else if (gameState.resources.stress < 40) score += 15;
-    else if (gameState.resources.stress < 60) score += 10;
-    else score += 5;
+    // Time management (20 points max)
+    score.time = Math.min(20, (daysLeft / 90) * 20);
 
-    // Language improvement (15 points)
-    if (gameState.resources.language > 40) score += 15;
-    else if (gameState.resources.language > 25) score += 10;
-    else if (gameState.resources.language > 10) score += 5;
+    // Money management (15 points max)
+    score.money = Math.min(15, (money / 50000) * 15);
 
-    // Documents acquired (15 points)
-    if (gameState.resources.documents.migrationCard) score += 15;
+    // Language improvement (15 points max)
+    score.language = Math.min(15, (language / 100) * 15);
 
-    return { score, maxScore, percentage: (score / maxScore) * 100 };
+    // Stress management (10 points max) - lower is better
+    score.stress = Math.max(0, 10 - (stress / 10));
+
+    score.total = Math.round(
+        score.documents + score.time + score.money + score.language + score.stress
+    );
+
+    return score;
 }
 
-function getRank(percentage) {
-    if (percentage >= 90) return { rank: 'S', title: 'Moscow Expert', emoji: '🌟' };
-    if (percentage >= 75) return { rank: 'A', title: 'Seasoned Traveler', emoji: '⭐' };
-    if (percentage >= 60) return { rank: 'B', title: 'Competent Navigator', emoji: '✨' };
-    if (percentage >= 45) return { rank: 'C', title: 'Struggling But Surviving', emoji: '💪' };
-    return { rank: 'D', title: 'Barely Made It', emoji: '😅' };
-}
-
-function getInsights() {
+function generatePerformanceAnalysis(score) {
     const insights = [];
 
-    if (gameState.resources.money < 2000) {
-        insights.push('💰 You spent a lot of money! Consider more budget-friendly options next time.');
-    } else if (gameState.resources.money > 8000) {
-        insights.push('💰 Great money management! You saved well.');
+    if (score.documents >= 35) {
+        insights.push('✅ Excellent job collecting documents!');
+    } else if (score.documents < 20) {
+        insights.push('❌ You struggled to collect the required documents.');
     }
 
-    if (gameState.resources.stress > 50) {
-        insights.push('😰 High stress levels! Try to find ways to reduce anxiety, like learning basic phrases.');
-    } else if (gameState.resources.stress < 20) {
-        insights.push('😌 You handled stress well! Your calm approach paid off.');
+    if (score.time >= 15) {
+        insights.push('⏰ Great time management!');
+    } else if (score.time < 5) {
+        insights.push('⏰ You ran low on time. Better planning could help.');
     }
 
-    if (gameState.resources.language > 30) {
-        insights.push('🗣️ Your Russian skills improved significantly! Language is key to settling in.');
-    } else if (gameState.resources.language < 15) {
-        insights.push('🗣️ Consider learning more Russian - it will make life much easier here.');
+    if (score.money >= 10) {
+        insights.push('💰 Excellent financial management!');
+    } else {
+        insights.push('💰 Consider budgeting more carefully.');
     }
 
-    if (gameState.resources.time < 30) {
-        insights.push('⏱️ You ran out of time! Better planning could help.');
-    } else if (gameState.resources.time > 80) {
-        insights.push('⏱️ Excellent time management! You were efficient.');
+    if (score.language >= 10) {
+        insights.push('🗣️ Your Russian skills improved significantly!');
+    } else {
+        insights.push('🗣️ Learning more Russian would make the process easier.');
     }
 
-    return insights;
+    if (score.stress >= 7) {
+        insights.push('😌 You managed stress well!');
+    } else {
+        insights.push('😰 The process was very stressful. Try to stay calm.');
+    }
+
+    return `<ul style="list-style: none; padding: 0;">${insights.map(i =>
+        `<li style="padding: 0.5rem 0; border-bottom: 1px solid #e2e8f0;">${i}</li>`
+    ).join('')}</ul>`;
+}
+
+function generateResourceLinks() {
+    return `
+        <div class="result-section" style="background: #e6fffa; border-left: 4px solid #38b2ac;">
+            <h3>🔗 Helpful Resources</h3>
+            <p style="margin-bottom: 1rem;">Learn more about settling in Russia:</p>
+            <ul style="padding-left: 1.5rem;">
+                <li style="margin: 0.5rem 0;">
+                    <a href="https://www.gov.ru/en/" target="_blank" style="color: #3182ce;">
+                        Russian Government Services Portal
+                    </a>
+                </li>
+                <li style="margin: 0.5rem 0;">
+                    <a href="https://www.mfa.gov.ru/en/" target="_blank" style="color: #3182ce;">
+                        Ministry of Foreign Affairs
+                    </a>
+                </li>
+                <li style="margin: 0.5rem 0;">
+                    <a href="https://www.study-in-russia.ru/en/" target="_blank" style="color: #3182ce;">
+                        Study in Russia
+                    </a>
+                </li>
+            </ul>
+        </div>
+    `;
 }
