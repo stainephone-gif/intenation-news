@@ -4,6 +4,7 @@ on:
   push:
     branches:
       - claude/moscow-settlement-game-01FvyL582ghW7ysWWtEYUNJ1
+      - claude/web-game-settlement-EbIsO
       - main
   workflow_dispatch:
 
